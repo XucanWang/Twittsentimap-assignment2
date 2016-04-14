@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tweet Map</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0">
+    <style>
+    html, body {
+            height: 100%;
+            margin: 1em;
+            padding: 0;
+        }
+#panel {
+            top: 50px;
+            left: 20px;
+            position: absolute;
+            z-index: 1000;
+        }
+#map {
+            position: absolute;
+            height: 100%;
+            left:10em;
+            width: 85%;
+        }
+.controls {
+        background-color: #fff;
+        border-radius: 2px;
+        border: 1px solid transparent;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        box-sizing: border-box;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        height: 29px;
+        margin-left: 17px;
+        margin-top: 10px;
+        outline: none;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 400px;
+        }
+.controls:focus {
+        border-color: #4d90fe;
+        }
+.dropbtn {
+        background-color: #4CAF50;
+        color: white;
+        padding: 16px;
+        font-size: 16px;
+        border: none;
+        cursor: pointer;
+       }
+.test {
+        background-color: #4CAF50;
+        color: white;
+        padding: 16px;
+        font-size: 16px;
+        border: none;
+        cursor: pointer;
+       }
+.dropdown {
+        position: relative;
+        display: inline-block;
+        }
+.dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #f9f9f9;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        }
+.dropdown-content a {
+        color: black;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        }
+.dropdown-content a:hover {background-color: #f1f1f1}
+.dropdown:hover .dropdown-content {
+         display: block;
+       }
+ .dropdown:hover .dropbtn {
+        background-color: #3e8e41;
+       }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js"></script>
+    <script>
+        var map;
+    var markers = [];
+    var infoWindow = new google.maps.InfoWindow({});
+    (function () {
+            google.maps.Map.prototype.markers = new Array();
+            google.maps.Map.prototype.addMarker = function (marker) {
+                this.markers[this.markers.length] = marker;
+            };
+            google.maps.Map.prototype.getMarkers = function () {
+                return this.markers
+            };
+            google.maps.Map.prototype.clearMarkers = function () {
+                if (infowindow) {
+                    infowindow.close();
+                }
+                for (var i = 0; i < this.markers.length; i++) {
+                    this.markers[i].set_map(null);
+                }
+            };
+        })();
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: {lat: 40.7127, lng: -90},
+            zoom: 2
+        });
+    }
+    function createMarker(data,status) {
+        var location = new google.maps.LatLng(data.Lat,data.Lon);
+        var user=data.Usr;
+        var time=data.Time;
+        var content=data.Content;
+        var sentiment=data.Sentiment;
+        var icons={
+            positive: new google.maps.MarkerImage (
+                    'https://cdn1.iconfinder.com/data/icons/Map-Markers-Icons-Demo-PNG/256/Map-Marker-Marker-Outside-Pink.png',
+                    null,
+                    null,
+                    null,
+                    new google.maps.Size(30, 30)
+                ),
+                neutral: new google.maps.MarkerImage (
+                    'http://icons.iconarchive.com/icons/icons-land/vista-map-markers/256/Map-Marker-Marker-Outside-Chartreuse-icon.png',
+                    null,
+                    null,
+                    null,
+                    new google.maps.Size(30, 30)
+                ),
+                negative: new google.maps.MarkerImage (
+                    'http://i.stack.imgur.com/TW0RT.png',
+                    null,
+                    null,
+                    null,
+                    new google.maps.Size(30, 30)
+                )
+        };
+        var markerOptions = {
+            position: location,
+            map: map,
+            icon: icons[sentiment]
+        };
+        if (status)
+            markerOptions.animation = google.maps.Animation.DROP;
+        var marker = new google.maps.Marker(markerOptions);
+        markers.push(marker);
+        google.maps.event.addListener(marker, "click", function () {
+                infoWindow.setContent(
+                    '<div id="bodyContent">' + '<a href="https://twitter.com/' + user + '">' + '<b>' + user + '</b></a>: ' +
+                    content + '</p>' +
+                    '<p><b>' + time + '</b></p>' +
+                    '</div>'
+                );
+                infoWindow.open(map, marker);
+            });
+        }
+    </script>
+</head>
+
+<body>
+<div id="panel">
+    <div class="dropdown">
+        <button class="dropbtn">Keywords!</button>
+        <div class="dropdown-content">
+            <a href="javascript:show('california');">California</a>
+            <a href="javascript:show('game');">Game</a>
+            <a href="javascript:show('fashion');">Fashion</a>
+            <a href="javascript:show('trump');">Trump</a>
+            <a href="javascript:show('food');">Food</a>
+            <a href="javascript:show('movie');">movie</a>
+        </div>
+    </div>
+</div>
+
+<div id="map"></div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.5/socket.io.js"></script>
+<script>
+    function removeMarkers() {
+        for (var i = 0; i < markers.length; i++) {
+            markers[i].setMap(null);
+        }
+        markers = [];
+        }
+    google.maps.event.addDomListener(window, 'load', initMap);
+
+    var socket=io();
+    socket.on('toggle', function (newdata) {    //of the client in this case.
+        var tweets = newdata.tweet;
+        removeMarkers();
+        for (var i = 0; i < tweets.length; i++) {
+            createMarker(tweets[i]);
+        }
+    });
+    socket.on('newcoming', function (newdata) {
+        var tweet = newdata.tweet;
+        createMarker(tweet, true);
+    });
+    function show(keyword) {
+        socket.emit('clicked', {key: keyword});
+    }
+</script>
+  </body>
+</html>
